@@ -2,3 +2,6 @@ datasets/
 log/
 layer_record_VGG8/
 */__pycache__/*
+*.o
+NeuroSIM/main
+NeuroSIM/.depend
