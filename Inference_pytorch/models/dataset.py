@@ -3,7 +3,7 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import os
 
-def get_cifar10(batch_size, data_root='/tmp/public_dataset/pytorch', train=True, val=True, **kwargs):
+def get_cifar10(batch_size, data_root='/homes/mosheikh/Research/DNN_NeuroSim_V1.3/Inference_pytorch/datasets', train=True, val=True, **kwargs):
     data_root = os.path.expanduser(os.path.join(data_root, 'cifar10-data'))
     num_workers = kwargs.setdefault('num_workers', 1)
     kwargs.pop('input_size', None)
@@ -36,7 +36,7 @@ def get_cifar10(batch_size, data_root='/tmp/public_dataset/pytorch', train=True,
     ds = ds[0] if len(ds) == 1 else ds
     return ds
 
-def get_cifar100(batch_size, data_root='/tmp/public_dataset/pytorch', train=True, val=True, **kwargs):
+def get_cifar100(batch_size, data_root='/homes/mosheikh/Research/DNN_NeuroSim_V1.3/Inference_pytorch/datasets', train=True, val=True, **kwargs):
     data_root = os.path.expanduser(os.path.join(data_root, 'cifar100-data'))
     num_workers = kwargs.setdefault('num_workers', 1)
     kwargs.pop('input_size', None)
