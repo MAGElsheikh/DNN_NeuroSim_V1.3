@@ -46,6 +46,7 @@ parser.add_argument('--v', type=float, default=0, help='drift coefficient')
 parser.add_argument('--detect', type=int, default=0, help='if 1, fixed-direction drift, if 0, random drift')
 parser.add_argument('--target', type=float, default=0, help='drift target for fixed-direction drift, range 0-1')
 current_time = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
+start_time = time.time()
 
 args = parser.parse_args()
 
@@ -149,4 +150,6 @@ if args.inference:
 logger('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
 	test_loss, correct, len(test_loader.dataset), acc))
 
+stop_time = time.time()
+print(f'Experiment took {(stop_time - start_time)/60} minutes to finish.')
 call(["/bin/bash", './layer_record_'+str(args.model)+'/trace_command.sh'])
