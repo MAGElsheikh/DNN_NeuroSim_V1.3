@@ -4,6 +4,7 @@ import torch.nn as nn
 from modules.quantization_cpu_np_infer import QConv2d,  QLinear
 from modules.floatrange_cpu_np_infer import FConv2d, FLinear
 import torch
+import numpy as np
 
 class VGG(nn.Module):
     def __init__(self, args, features, num_classes,logger):
@@ -14,13 +15,17 @@ class VGG(nn.Module):
                                        ('L', 1024, num_classes)], 
                                        args, logger)
 
-        # print(self.features)
-        # print(self.classifier)
+        #print(self.features)
+        #print(self.classifier)
 
     def forward(self, x):
+        #print((x))
         x = self.features(x)
+        #print((x[0,:,:,:]))
         x = x.view(x.size(0), -1)
+        #print(np.shape(x))
         x = self.classifier(x)
+        #print(print(x))
         return x
 
 

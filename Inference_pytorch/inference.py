@@ -34,9 +34,9 @@ parser.add_argument('--wl_activate', type=int, default=8)
 parser.add_argument('--wl_error', type=int, default=8)
 # Hardware Properties
 # if do not consider hardware effects, set inference=0
-parser.add_argument('--inference', type=int, default=0, help='run hardware inference simulation')
+parser.add_argument('--inference', type=int, default=1, help='run hardware inference simulation')
 parser.add_argument('--subArray', type=int, default=128, help='size of subArray (e.g. 128*128)')
-parser.add_argument('--ADCprecision', type=int, default=5, help='ADC precision (e.g. 5-bit)')
+parser.add_argument('--ADCprecision', type=int, default=8, help='ADC precision (e.g. 5-bit)')
 parser.add_argument('--cellBit', type=int, default=4, help='cell precision (e.g. 4-bit/cell)')
 parser.add_argument('--onoffratio', type=float, default=10, help='device on/off ratio (e.g. Gmax/Gmin = 3)')
 # if do not run the device retention / conductance variation effects, set vari=0, v=0
@@ -114,6 +114,9 @@ criterion = torch.nn.CrossEntropyLoss()
 
 # for data, target in test_loader:
 for i, (data, target) in enumerate(test_loader):
+    print(i, len(test_loader))
+    if(i>=len(test_loader)/5):
+        break
     if i==0:
         hook_handle_list = hook.hardware_evaluation(modelCF,args.wl_weight,args.wl_activate,args.model,args.mode)
     indx_target = target.clone()
@@ -130,8 +133,8 @@ for i, (data, target) in enumerate(test_loader):
         hook.remove_hook_list(hook_handle_list)
 
 test_loss = test_loss / len(test_loader)  # average over number of mini-batch
-acc = 100. * correct / len(test_loader.dataset)
-
+#acc = 100. * correct / len(test_loader.dataset)
+acc = 100. * correct / (len(test_loader.dataset)/5)
 accuracy = acc.cpu().data.numpy()
 
 if args.inference:
@@ -148,7 +151,7 @@ if args.inference:
     print(args.vari)
 
 logger('Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
-	test_loss, correct, len(test_loader.dataset), acc))
+	test_loss, correct, len(test_loader.dataset)/5, acc))
 
 stop_time = time.time()
 print(f'Experiment took {(stop_time - start_time)/60} minutes to finish.')

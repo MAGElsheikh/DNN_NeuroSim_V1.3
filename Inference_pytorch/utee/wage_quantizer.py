@@ -55,7 +55,7 @@ def QG(x, bits_G, lr):
     norm = SR(norm)
     return norm / S(bits_G)
     
-def Retention(x, t, v, detect, target):
+def Retention(x, t, v, detect, target): #drift target for fixed-direction drift, range 0-1
     lower = torch.min(x).item()
     upper = torch.max(x).item()
     target = (torch.max(x).item() - torch.min(x).item())*target
@@ -65,7 +65,7 @@ def Retention(x, t, v, detect, target):
         truncateTarget = (target+1)/2
         sign = torch.sign(torch.add(torch.zeros_like(x),truncateTarget)-truncateX)
         ratio = t**(v*sign)
-    else :  # random generate target for each cell
+    else :  # random generate target for each cell -random drift
         sign = torch.randint_like(x, -1, 2)
         truncateX = (x+1)/2
         ratio = t**(v*sign)
@@ -74,17 +74,35 @@ def Retention(x, t, v, detect, target):
 
 
 def NonLinearQuantizeOut(x, bit):
-    minQ = torch.min(x)
-    delta = torch.max(x) - torch.min(x)
-    #print(minQ)
-    #print(delta)
+    #minQ = torch.min(x)
+    #delta = torch.max(x) - minQ
+
+    minQ = torch.min(x)*0
+    maxQ = minQ*0+128*1
+    delta = maxQ - minQ
+    
+
+    #print("min: ", min)
+    #print("max: ", max)
+    #print("minQ: ", minQ)
+    #print("delta: ", delta)
     if (bit == 3) :
         # 3-bit ADC
         y = x.clone()
         base = torch.zeros_like(y)
+        
+        bound = np.array([0.04, 0.08, 0.12, 0.16, 0.24, 0.4, 0.7, 1]) #Mine
+        out = np.array([0.02, 0.06, 0.1, 0.14, 0.2, 0.32, 0.55, 0.85])
+        
+        
+        #bound = np.array([0.015, 0.03, 0.06, 0.09, 0.12, 0.24, 0.49, 1]) #Mine 2bit works well
+        #out = np.array([0.0075, 0.0225, 0.045, 0.075, 0.105, 0.18, 0.365, 0.745])
+        
+        #bound = np.array([0.02, 0.04, 0.08, 0.12, 0.22, 0.34, 0.6, 1]) #Mine
+        #out = np.array([0.01, 0.03, 0.06, 0.1, 0.17, 0.28, 0.47, 0.8])
 
-        bound = np.array([0.02, 0.08, 0.12, 0.18, 0.3, 0.5, 0.7, 1])
-        out = np.array([0.01, 0.05, 0.1, 0.15, 0.24, 0.4, 0.6, 0.85])
+        #bound = np.array([0.02, 0.08, 0.12, 0.18, 0.3, 0.5, 0.7, 1])
+        #out = np.array([0.01, 0.05, 0.1, 0.15, 0.24, 0.4, 0.6, 0.85])
 
         ref = torch.from_numpy(bound).float()
         quant = torch.from_numpy(out).float()
@@ -103,9 +121,17 @@ def NonLinearQuantizeOut(x, bit):
         # 4-bit ADC
         base = torch.zeros_like(y)
         
-        # good for 2-bit cell
-        bound = np.array([0.02, 0.05, 0.08, 0.12, 0.16, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.85, 1])
-        out = np.array([0.01, 0.035, 0.065, 0.1, 0.14, 0.18, 0.225, 0.275, 0.325, 0.375, 0.425, 0.475, 0.55, 0.65, 0.775, 0.925])
+        
+        
+        bound = np.array([0.01, 0.03, 0.05, 0.07, 0.09, 0.11, 0.13, 0.15, 0.17, 0.19, 0.21, 0.23, 0.25, 0.3, 0.4, 1])
+        out = np.array([0.005, 0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.15, 0.16, 0.18, 0.20, 0.22, 0.24, 0.275, 0.35, 0.7])
+                
+        #bound = np.array([0.0075, 0.015, 0.0225, 0.03, 0.0375, 0.045, 0.06, 0.075, 0.09, 0.12, 0.15, 0.18, 0.21, 0.24, 0.49, 1]) good for 2 bit cells - ME
+        #out = np.array([0.00375, 0.01125, 0.01875, 0.02625, 0.03375, 0.04125, 0.0525, 0.0675, 0.0825, 0.105, 0.135, 0.165, 0.195, 0.225, 0.365, 0.745])
+        
+        # good for 2-bit cell 
+        #bound = np.array([0.02, 0.05, 0.08, 0.12, 0.16, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.6, 0.7, 0.85, 1])
+        #out = np.array([0.01, 0.035, 0.065, 0.1, 0.14, 0.18, 0.225, 0.275, 0.325, 0.375, 0.425, 0.475, 0.55, 0.65, 0.775, 0.925])
         
         ref = torch.from_numpy(bound).float()
         quant = torch.from_numpy(out).float()
@@ -138,8 +164,23 @@ def NonLinearQuantizeOut(x, bit):
         """
         
         # 4-bit cell
-        bound = np.array([0.005, 0.01, 0.015, 0.02, 0.025, 0.03, 0.04, 0.05, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.22, 0.24, 0.26, 0.28, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.80, 0.90, 1])
-        out = np.array([0.001, 0.003, 0.007, 0.010, 0.015, 0.020, 0.030, 0.040, 0.055, 0.07, 0.09, 0.11, 0.13, 0.15, 0.17, 0.19, 0.21, 0.23, 0.25, 0.27, 0.29, 0.32, 0.37, 0.42, 0.47, 0.52, 0.57, 0.62, 0.67, 0.75, 0.85, 0.95])
+        
+        bound = np.array([0.00195312, 0.00390625, 0.00585938, 0.0078125 , 0.00976562, \
+       0.01171875, 0.015625  , 0.01953125, 0.0234375 , 0.02734375, \
+       0.03125   , 0.03515625, 0.0390625 , 0.04296875, 0.046875  , \
+       0.0546875 , 0.0625    , 0.0703125 , 0.078125  , 0.0859375 , \
+       0.09375   , 0.1015625 , 0.109375  , 0.1171875 , 0.125     , \
+       0.140625  , 0.15625   , 0.1875    , 0.21875   , 0.25      , \
+       0.5       , 1.        ])
+        out = np.array([0.00097656, 0.00292969, 0.00488281, 0.00683594, 0.00878906, \
+       0.01074219, 0.01367188, 0.01757812, 0.02148438, 0.02539062, \
+       0.02929688, 0.03320312, 0.03710938, 0.04101562, 0.04492188, \
+       0.05078125, 0.05859375, 0.06640625, 0.07421875, 0.08203125, \
+       0.08984375, 0.09765625, 0.10546875, 0.11328125, 0.12109375, \
+       0.1328125 , 0.1484375 , 0.171875  , 0.203125  , 0.234375  , \
+       0.375     , 0.75      ])
+        #bound = np.array([0.01, 0.015, 0.02, 0.025, 0.03, 0.04, 0.05, 0.06, 0.08, 0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.22, 0.24, 0.26, 0.28, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.80, 0.90, 1])
+        #out = np.array([0.001, 0.003, 0.007, 0.010, 0.015, 0.020, 0.030, 0.040, 0.055, 0.07, 0.09, 0.11, 0.13, 0.15, 0.17, 0.19, 0.21, 0.23, 0.25, 0.27, 0.29, 0.32, 0.37, 0.42, 0.47, 0.52, 0.57, 0.62, 0.67, 0.75, 0.85, 0.95])
         
         ref = torch.from_numpy(bound).float()
         quant = torch.from_numpy(out).float()
@@ -184,8 +225,12 @@ def NonLinearQuantizeOut(x, bit):
 
 
 def LinearQuantizeOut(x, bit):
-    minQ = torch.min(x)
-    delta = torch.max(x) - torch.min(x)
+    #minQ = torch.min(x)
+    #delta = torch.max(x) - torch.min(x)
+    minQ = torch.min(x)*0
+    maxQ = minQ*0+128*15
+    delta = maxQ - minQ
+    #print(torch.max(x))
     y = x.clone()
     if delta > 0:
         stepSizeRatio = 2.**(-bit)
@@ -267,8 +312,8 @@ class WAGEQuantizer(Module):
 
 def WAGEQuantizer_f(x, bits_A, bits_E, name=""):
         if bits_A != -1:
-            x = C(x, bits_A) #  keeps the gradients
-        y = quantize_wage(x, bits_A, bits_E, name)
+            x = C(x, bits_A) #  keeps the gradients #Clamp function
+        y = quantize_wage(x, bits_A, bits_E, name) 
         return y
 
 

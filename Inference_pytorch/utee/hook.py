@@ -15,7 +15,7 @@ def Neural_Sim(self, input, output):
     print("quantize layer ", self.name)
     input_file_name =  './layer_record_' + str(model_n) + '/input' + str(self.name) + '.csv'
     weight_file_name =  './layer_record_' + str(model_n) + '/weight' + str(self.name) + '.csv'
-    f = open('./layer_record_' + str(model_n) + '/trace_command.sh', "a")
+    f = open('./layer_record_' + str(model_n) + '/trace_command.sh', "a") #Reads the layer record file
     f.write(weight_file_name+' '+input_file_name+' ')
     if FP:
         weight_q = float_quantizer.float_range_quantize(self.weight,self.wl_weight)
@@ -36,7 +36,7 @@ def write_matrix_weight(input_matrix,filename):
     np.savetxt(filename, weight_matrix, delimiter=",",fmt='%10.5f')
 
 
-def write_matrix_activation_conv(input_matrix,fill_dimension,length,filename):
+def write_matrix_activation_conv(input_matrix,fill_dimension,length,filename): #This is where the input is converted to binary!
     filled_matrix_b = np.zeros([input_matrix.shape[2],input_matrix.shape[1]*length],dtype=np.str)
     filled_matrix_bin,scale = dec2bin(input_matrix[0,:],length)
     for i,b in enumerate(filled_matrix_bin):
@@ -73,7 +73,7 @@ def stretch_input(input_matrix,window_size = 5,padding=(0,0),stride=(1,1)):
     return output_matrix
 
 
-def dec2bin(x,n):
+def dec2bin(x,n): #Positive and negative, hence the step is twice as big
     y = x.copy()
     out = []
     scale_list = []
@@ -84,7 +84,7 @@ def dec2bin(x,n):
 
     y[x_int>=0] = 0
     y[x_int< 0] = 1
-    rest = x_int + base*y
+    rest = x_int + base*y #Convert to two's complement equivalent in decimal  X varies between -1 and 1
     out.append(y.copy())
     scale_list.append(-base*delta)
     for i in range(n-1):

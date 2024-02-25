@@ -38,11 +38,12 @@ class QConv2d(nn.Conv2d):
 
     @weak_script_method
     def forward(self, input):
-        
-        weight1 = self.weight * self.scale + (self.weight - self.weight * self.scale).detach()
-        weight = weight1 + (wage_quantizer.Q(weight1,self.wl_weight) -weight1).detach()
+        #torch.backends.cudnn.deterministic = True #I added this
+        weight1 = self.weight * self.scale + (self.weight - self.weight * self.scale).detach() #The gradients are only computed with respect to scale*weight
+        weight = weight1 + (wage_quantizer.Q(weight1,self.wl_weight) -weight1).detach() #The gradients are only computed with respect to the first FP term
         outputOrignal= F.conv2d(input, weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
-
+        #print(np.shape(weight))
+        #print(self.bias)
         bitWeight = int(self.wl_weight)
         bitActivation = int(self.wl_input)
 
@@ -68,9 +69,10 @@ class QConv2d(nn.Conv2d):
                     if numSubArray == 0:
                         mask = torch.zeros_like(weight)
                         mask[:,:,i,j] = 1
-                        if weight.shape[1] == 3:
+                        if weight.shape[1] == 3: #First layer
+                            #print(" Hi")
                             # after get the spacial kernel, need to transfer floating weight [-1, 1] to binarized ones
-                            X_decimal = torch.round((2**bitWeight - 1)/2 * (weight+1) + 0)*mask
+                            X_decimal = torch.round((2**bitWeight - 1)/2 * (weight+1) + 0)*mask #shifts the weight between 0 and 2^N_bit-1
                             outputP = torch.zeros_like(output)
                             outputD = torch.zeros_like(output)
                             for k in range (int(bitWeight/self.cellBit)):
@@ -133,6 +135,7 @@ class QConv2d(nn.Conv2d):
                             for s in range(numSubArray):
                                 mask = torch.zeros_like(weight)
                                 mask[:,(s*self.subArray):(s+1)*self.subArray, i, j] = 1
+                                #This focuses on a certain point on the grid for #subArray channels
                                 # after get the spacial kernel, need to transfer floating weight [-1, 1] to binarized ones
                                 X_decimal = torch.round((2**bitWeight - 1)/2 * (weight+1) + 0)*mask
                                 outputSP = torch.zeros_like(output)
@@ -149,8 +152,12 @@ class QConv2d(nn.Conv2d):
                                     remainderQ = remainderQ + remainderQ*torch.normal(0., torch.full(remainderQ.size(),self.vari, device='cuda'))
                                     outputPartial= F.conv2d(inputB, remainderQ*mask, self.bias, self.stride, self.padding, self.dilation, self.groups)
                                     outputDummyPartial= F.conv2d(inputB, dummyP*mask, self.bias, self.stride, self.padding, self.dilation, self.groups)
+                                    
                                     # Add ADC quanization effects here !!!
+                                    #print(outputPartial)
                                     outputPartialQ = wage_quantizer.LinearQuantizeOut(outputPartial, self.ADCprecision)
+                                    #print(remainderQ*mask)
+                                    #print(outputPartialQ[0,:,:,:])
                                     outputDummyPartialQ = wage_quantizer.LinearQuantizeOut(outputDummyPartial, self.ADCprecision)
                                     scaler = cellRange**k
                                     outputSP = outputSP + outputPartialQ*scaler*2/(1-1/onoffratio)
@@ -161,6 +168,7 @@ class QConv2d(nn.Conv2d):
                             scalerIN = 2**z
                             outputIN = outputIN + outputP*scalerIN
                         output = output + outputIN/(2**bitActivation)
+            #print(output[0,:,:,:])
             output = output/(2**bitWeight)   # since weight range was convert from [-1, 1] to [-256, 256]
             
         elif self.inference == 1:
@@ -174,10 +182,11 @@ class QConv2d(nn.Conv2d):
             # original WAGE QCov2d
             weight1 = self.weight * self.scale + (self.weight - self.weight * self.scale).detach()
             weight = weight1 + (wage_quantizer.Q(weight1,self.wl_weight) -weight1).detach()
-            weight = wage_quantizer.Retention(weight,self.t,self.v,self.detect,self.target)
+            weight = wage_quantizer.Retention(weight,self.t,self.v,self.detect,self.target) #Weight retention and Drift, nevermind for now
             output= F.conv2d(input, weight, self.bias, self.stride, self.padding, self.dilation, self.groups)
         output = output/self.scale
         output = wage_quantizer.WAGEQuantizer_f(output, self.wl_activate, self.wl_error)
+        
         
         return output
 
@@ -218,6 +227,8 @@ class QLinear(nn.Linear):
         weight = weight1 + (wage_quantizer.Q(weight1,self.wl_weight) -weight1).detach()
         outputOrignal = F.linear(input, weight, self.bias)
         output = torch.zeros_like(outputOrignal)
+        
+        #print(self.bias)
 
         bitWeight = int(self.wl_weight)
         bitActivation = int(self.wl_input)
